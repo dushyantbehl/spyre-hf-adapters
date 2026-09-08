@@ -172,6 +172,7 @@ CAUSAL_LM_MODELS = {
         "path": "bharatgenai/Param-1-5B",
         "adapter": "hf_bharatgen.py",
         "size": "5b",
+        "trust_remote_code": True,
     },
     # hf_phi3.py
     "phi4": {
