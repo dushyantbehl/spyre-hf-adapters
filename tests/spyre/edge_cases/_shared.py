@@ -48,12 +48,15 @@ from tests.conftest import (
     load_ref_model,
     resolve_adapter_module_for_test,
 )
+from tests.model_registry import REMOTE_CODE_PATHS
 
 
 def _load_spyre_model(model_path: str) -> PreTrainedModel:
     print(f"  Loading {model_path} on Spyre ...")
     t0 = time.time()
-    model = AutoSpyreModelForCausalLM.from_pretrained(model_path)
+    model = AutoSpyreModelForCausalLM.from_pretrained(
+        model_path, trust_remote_code=(model_path in REMOTE_CODE_PATHS)
+    )
     print(f"  Spyre load+prepare: {time.time() - t0:.1f}s")
     return model
 
@@ -62,7 +65,9 @@ def _setup(
     model_path: str,
     need_ref: bool,
 ):
-    tokenizer = AutoTokenizer.from_pretrained(model_path)
+    tokenizer = AutoTokenizer.from_pretrained(
+        model_path, trust_remote_code=(model_path in REMOTE_CODE_PATHS)
+    )
     adapter = resolve_adapter_module_for_test(model_path)
 
     ref_model = load_ref_model(model_path, adapter_mod=adapter) if need_ref else None

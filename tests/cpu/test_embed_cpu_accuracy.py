@@ -52,7 +52,7 @@ from tests.conftest import (
     resolve_adapter_module_for_test,
 )
 from tests.cpu.conftest import _unwrap_compiled_blocks, encode_padded, min_cosine
-from tests.model_registry import EMBED_PATHS
+from tests.model_registry import EMBED_PATHS, REMOTE_CODE_PATHS
 
 pytestmark = pytest.mark.model_harness("embedding")
 
@@ -103,7 +103,9 @@ def test_auto_loader(model_path: str) -> None:
     gc.collect()
 
     # Auto-loader path
-    model = auto_spyre_model.AutoSpyreModel.from_pretrained(model_path)
+    model = auto_spyre_model.AutoSpyreModel.from_pretrained(
+        model_path, trust_remote_code=(model_path in REMOTE_CODE_PATHS)
+    )
     _unwrap_compiled_blocks(model)
     with torch.no_grad():
         adapter_hidden = _run_prefill(

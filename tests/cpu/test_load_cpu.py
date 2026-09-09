@@ -35,6 +35,7 @@ from tests.model_registry import (
     EMBED_PATHS,
     MASKED_LM_PATHS,
     QUESTION_ANSWERING_PATHS,
+    REMOTE_CODE_PATHS,
     TOKEN_CLASSIFICATION_PATHS,
 )
 
@@ -43,7 +44,9 @@ from tests.model_registry import (
 @pytest.mark.parametrize("model_path", CAUSAL_PATHS, ids=CAUSAL_PATHS)
 def test_load_causal_lm(model_path):
     auto_spyre_model = sys.modules["hf_adapters.auto_spyre_model"]
-    model = auto_spyre_model.AutoSpyreModelForCausalLM.from_pretrained(model_path)
+    model = auto_spyre_model.AutoSpyreModelForCausalLM.from_pretrained(
+        model_path, trust_remote_code=(model_path in REMOTE_CODE_PATHS)
+    )
     assert model is not None
     assert callable(
         getattr(model, "generate", None)
@@ -63,7 +66,9 @@ def test_load_embedding(model_path):
 
 def load_embedding(model_path: str) -> Any:
     auto_spyre_model = sys.modules["hf_adapters.auto_spyre_model"]
-    model = auto_spyre_model.AutoSpyreModel.from_pretrained(model_path)
+    model = auto_spyre_model.AutoSpyreModel.from_pretrained(
+        model_path, trust_remote_code=(model_path in REMOTE_CODE_PATHS)
+    )
     return model
 
 
@@ -71,9 +76,13 @@ def load_embedding(model_path: str) -> Any:
 @pytest.mark.parametrize("model_path", MASKED_LM_PATHS, ids=MASKED_LM_PATHS)
 def test_load_masked_lm(model_path):
     auto_spyre_model = sys.modules["hf_adapters.auto_spyre_model"]
+    trust_remote_code = model_path in REMOTE_CODE_PATHS
     model = auto_spyre_model.AutoSpyreModelForMaskedLM.from_pretrained(
         model_path,
-        dtype=auto_spyre_model.dtype_for_model_path(model_path, target_device="cpu"),
+        dtype=auto_spyre_model.dtype_for_model_path(
+            model_path, target_device="cpu", trust_remote_code=trust_remote_code
+        ),
+        trust_remote_code=trust_remote_code,
     )
     assert callable(model.forward)
     del model
@@ -86,9 +95,13 @@ def test_load_masked_lm(model_path):
 )
 def test_load_question_answering(model_path):
     auto_spyre_model = sys.modules["hf_adapters.auto_spyre_model"]
+    trust_remote_code = model_path in REMOTE_CODE_PATHS
     model = auto_spyre_model.AutoSpyreModelForQuestionAnswering.from_pretrained(
         model_path,
-        dtype=auto_spyre_model.dtype_for_model_path(model_path, target_device="cpu"),
+        dtype=auto_spyre_model.dtype_for_model_path(
+            model_path, target_device="cpu", trust_remote_code=trust_remote_code
+        ),
+        trust_remote_code=trust_remote_code,
     )
     assert callable(model.forward)
     assert next(model.qa_outputs.parameters()).device.type == "cpu"
@@ -103,7 +116,7 @@ def test_load_question_answering(model_path):
 def test_load_token_classification(model_path):
     auto_spyre_model = sys.modules["hf_adapters.auto_spyre_model"]
     model = auto_spyre_model.AutoSpyreModelForTokenClassification.from_pretrained(
-        model_path
+        model_path, trust_remote_code=(model_path in REMOTE_CODE_PATHS)
     )
     assert callable(model.forward)
     assert next(model.classifier.parameters()).device.type == "cpu"

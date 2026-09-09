@@ -42,6 +42,7 @@ from tests.conftest import load_ref_model, resolve_adapter_module_for_test
 from tests.model_registry import (
     CAUSAL_PATHS,
     NON_BLOCKING_CAUSAL_MODELS,
+    REMOTE_CODE_PATHS,
     xfail_non_blocking,
 )
 
@@ -281,7 +282,9 @@ def _run_model_test(model_path: str, num_decode: int = 4) -> list[dict[str, Any]
     print(f"  {model_path}")
     print(f"{'=' * 70}")
 
-    tokenizer = AutoTokenizer.from_pretrained(model_path)
+    tokenizer = AutoTokenizer.from_pretrained(
+        model_path, trust_remote_code=(model_path in REMOTE_CODE_PATHS)
+    )
     model = load_ref_model(model_path=model_path, adapter_mod=adapter)
 
     prompt = "The capital of France is"
@@ -297,7 +300,11 @@ def _run_model_test(model_path: str, num_decode: int = 4) -> list[dict[str, Any]
 
     # Use bf16/fp16 dtype, requested by the registry or based on the model config.
     # (Spyre does not support float32, so float32 entries will use fp16.)
-    spyre_dtype = dtype_for_model_path(model_path, target_device="spyre")
+    spyre_dtype = dtype_for_model_path(
+        model_path,
+        target_device="spyre",
+        trust_remote_code=(model_path in REMOTE_CODE_PATHS),
+    )
     move_model_to_spyre(model=model, module=adapter, dtype=spyre_dtype)
     print("  Running adapter on Spyre ...")
     adapter_results = adapter_greedy_steps(

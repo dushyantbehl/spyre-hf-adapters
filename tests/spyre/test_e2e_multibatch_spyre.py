@@ -69,6 +69,7 @@ from tests.cpu._generate_helpers import (
 from tests.model_registry import (
     CAUSAL_PATHS,
     NON_BLOCKING_CAUSAL_MODELS,
+    REMOTE_CODE_PATHS,
     xfail_non_blocking,
 )
 
@@ -100,7 +101,9 @@ def test_e2e_multibatch_spyre(model_path: str) -> None:
 
     assert len(PROMPTS) > 1, "multi-batch test needs batch_size > 1"
 
-    tokenizer = AutoTokenizer.from_pretrained(model_path)
+    tokenizer = AutoTokenizer.from_pretrained(
+        model_path, trust_remote_code=(model_path in REMOTE_CODE_PATHS)
+    )
 
     print(f"\n{'=' * 70}")
     print(f"  {model_path}  (batch_size={len(PROMPTS)})")
@@ -116,8 +119,15 @@ def test_e2e_multibatch_spyre(model_path: str) -> None:
 
     # One Spyre model, reused for the batched run and each single run (generate
     # allocates a fresh KV cache per call, so runs do not contaminate each other).
-    spyre_dtype = dtype_for_model_path(model_path, target_device="spyre")
-    model = AutoSpyreModelForCausalLM.from_pretrained(model_path, dtype=spyre_dtype)
+    trust_remote_code = model_path in REMOTE_CODE_PATHS
+    spyre_dtype = dtype_for_model_path(
+        model_path, target_device="spyre", trust_remote_code=trust_remote_code
+    )
+    model = AutoSpyreModelForCausalLM.from_pretrained(
+        model_path,
+        dtype=spyre_dtype,
+        trust_remote_code=trust_remote_code,
+    )
 
     # Exercise the public tokenized-input API attached by AutoSpyreModel. Bind the
     # model as a default arg because the local name is deleted after the runs.

@@ -44,6 +44,7 @@ from tests.cpu.conftest import _set_rope_dtype, _unwrap_compiled_blocks
 from tests.model_registry import (
     CAUSAL_PATHS,
     NON_BLOCKING_CAUSAL_MODELS,
+    REMOTE_CODE_PATHS,
     xfail_non_blocking,
 )
 
@@ -59,7 +60,9 @@ def test_multibatch(model_path: str) -> None:
     hf_common_mod = sys.modules["hf_adapters.hf_common"]
     adapter_mod = resolve_adapter_module_for_test(model_path)
 
-    tokenizer = AutoTokenizer.from_pretrained(model_path)
+    tokenizer = AutoTokenizer.from_pretrained(
+        model_path, trust_remote_code=(model_path in REMOTE_CODE_PATHS)
+    )
 
     # HF reference (per-prompt, BEFORE patching for cleanliness)
     model = load_ref_model(model_path, adapter_mod)
@@ -72,7 +75,11 @@ def test_multibatch(model_path: str) -> None:
     model = load_ref_model(model_path, adapter_mod)
     adapter_mod.prepare_for_spyre(model)
     _unwrap_compiled_blocks(model)
-    dtype = dtype_for_model_path(model_path, target_device="cpu")
+    dtype = dtype_for_model_path(
+        model_path,
+        target_device="cpu",
+        trust_remote_code=(model_path in REMOTE_CODE_PATHS),
+    )
     _set_rope_dtype(model, dtype)
     sequences = hf_common_mod.generate(
         adapter_mod._run_forward,

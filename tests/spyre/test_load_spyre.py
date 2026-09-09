@@ -44,6 +44,7 @@ from tests.model_registry import (
     MASKED_LM_PATHS,
     NON_BLOCKING_CAUSAL_MODELS,
     QUESTION_ANSWERING_PATHS,
+    REMOTE_CODE_PATHS,
     SEQ_CLASSIFICATION_PATHS,
     TOKEN_CLASSIFICATION_PATHS,
     xfail_non_blocking,
@@ -73,7 +74,9 @@ def load_causal_lm(model_path: str) -> tuple[Any, Any, float]:
     from hf_adapters import AutoSpyreModelForCausalLM
 
     t0 = time.time()
-    model = AutoSpyreModelForCausalLM.from_pretrained(model_path)
+    model = AutoSpyreModelForCausalLM.from_pretrained(
+        model_path, trust_remote_code=(model_path in REMOTE_CODE_PATHS)
+    )
     load_s = time.time() - t0
 
     model_is_not_none = model is not None
@@ -86,7 +89,9 @@ def load_embedding(model_path: str) -> tuple[Any, float]:
     from hf_adapters import AutoSpyreModel
 
     t0 = time.time()
-    model = AutoSpyreModel.from_pretrained(model_path)
+    model = AutoSpyreModel.from_pretrained(
+        model_path, trust_remote_code=(model_path in REMOTE_CODE_PATHS)
+    )
     load_s = time.time() - t0
     return model is not None, load_s
 
@@ -108,10 +113,15 @@ def load_masked_lm(model_path: str) -> tuple[Any, Any, float]:
     from hf_adapters import AutoSpyreModelForMaskedLM
     from hf_adapters.auto_spyre_model import dtype_for_model_path
 
-    dtype = dtype_for_model_path(model_path, target_device="spyre")
+    trust_remote_code = model_path in REMOTE_CODE_PATHS
+    dtype = dtype_for_model_path(
+        model_path, target_device="spyre", trust_remote_code=trust_remote_code
+    )
 
     t0 = time.time()
-    model = AutoSpyreModelForMaskedLM.from_pretrained(model_path, dtype=dtype)
+    model = AutoSpyreModelForMaskedLM.from_pretrained(
+        model_path, dtype=dtype, trust_remote_code=trust_remote_code
+    )
     load_s = time.time() - t0
 
     model_is_not_none = model is not None
@@ -138,10 +148,13 @@ def load_question_answering(model_path: str) -> tuple[Any, Any, float]:
     from hf_adapters import AutoSpyreModelForQuestionAnswering
     from hf_adapters.auto_spyre_model import dtype_for_model_path
 
-    dtype = dtype_for_model_path(model_path, target_device="spyre")
+    trust_remote_code = model_path in REMOTE_CODE_PATHS
+    dtype = dtype_for_model_path(
+        model_path, target_device="spyre", trust_remote_code=trust_remote_code
+    )
     t0 = time.time()
     model: Any = AutoSpyreModelForQuestionAnswering.from_pretrained(
-        model_path, dtype=dtype
+        model_path, dtype=dtype, trust_remote_code=trust_remote_code
     )
     load_s = time.time() - t0
     head_on_cpu = next(model.qa_outputs.parameters()).device.type == "cpu"

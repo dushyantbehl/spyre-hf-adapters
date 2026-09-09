@@ -35,6 +35,7 @@ from tests.conftest import encode_generation_inputs
 from tests.model_registry import (
     CAUSAL_PATHS,
     NON_BLOCKING_CAUSAL_MODELS,
+    REMOTE_CODE_PATHS,
     xfail_non_blocking,
 )
 
@@ -52,11 +53,15 @@ def run_smoke_test(model_path: str) -> dict[str, Any]:
     print(f"{'=' * 70}")
 
     t0 = time.time()
-    model = AutoSpyreModelForCausalLM.from_pretrained(model_path)
+    model = AutoSpyreModelForCausalLM.from_pretrained(
+        model_path, trust_remote_code=(model_path in REMOTE_CODE_PATHS)
+    )
     load_time = time.time() - t0
     print(f"  Load time: {load_time:.1f}s")
 
-    tokenizer = AutoTokenizer.from_pretrained(model_path)
+    tokenizer = AutoTokenizer.from_pretrained(
+        model_path, trust_remote_code=(model_path in REMOTE_CODE_PATHS)
+    )
     prompt = "The capital of France is"
     print(f"  Prompt: {prompt!r}")
 
