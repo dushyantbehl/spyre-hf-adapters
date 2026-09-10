@@ -85,14 +85,22 @@ def _run_prefill(
 def test_auto_loader(model_path: str) -> None:
     auto_spyre_model = sys.modules["hf_adapters.auto_spyre_model"]
     hf_common_mod = sys.modules["hf_adapters.hf_common"]
-    adapter_module = resolve_adapter_module_for_test(model_path)
+    trust_remote_code = model_path in REMOTE_CODE_PATHS
+    adapter_module = resolve_adapter_module_for_test(
+        model_path, trust_remote_code=trust_remote_code
+    )
 
-    tokenizer = AutoTokenizer.from_pretrained(model_path)
+    tokenizer = AutoTokenizer.from_pretrained(
+        model_path, trust_remote_code=trust_remote_code
+    )
     input_ids, attention_mask = encode_padded(tokenizer, PROMPTS)
 
     # HF reference (loaded fresh, before the auto-loader path).
     ref_model = load_ref_model(
-        model_path=model_path, adapter_mod=adapter_module, auto_model_cls=AutoModel
+        model_path=model_path,
+        adapter_mod=adapter_module,
+        auto_model_cls=AutoModel,
+        trust_remote_code=trust_remote_code,
     )
 
     with torch.no_grad():
@@ -104,7 +112,7 @@ def test_auto_loader(model_path: str) -> None:
 
     # Auto-loader path
     model = auto_spyre_model.AutoSpyreModel.from_pretrained(
-        model_path, trust_remote_code=(model_path in REMOTE_CODE_PATHS)
+        model_path, trust_remote_code=trust_remote_code
     )
     _unwrap_compiled_blocks(model)
     with torch.no_grad():

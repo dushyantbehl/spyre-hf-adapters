@@ -272,20 +272,28 @@ def _print_table(rows: list[dict[str, Any]]) -> None:
         )
 
 
-def _run_model_test(model_path: str, num_decode: int = 4) -> list[dict[str, Any]]:
+def _run_model_test(
+    model_path: str, num_decode: int = 4, trust_remote_code: bool | None = None
+) -> list[dict[str, Any]]:
     """Full comparison for one model. Returns the list of comparison rows."""
     from transformers import AutoTokenizer
 
-    adapter = resolve_adapter_module_for_test(model_path)
+    if trust_remote_code is None:
+        trust_remote_code = model_path in REMOTE_CODE_PATHS
+    adapter = resolve_adapter_module_for_test(
+        model_path, trust_remote_code=trust_remote_code
+    )
 
     print(f"\n{'=' * 70}")
     print(f"  {model_path}")
     print(f"{'=' * 70}")
 
     tokenizer = AutoTokenizer.from_pretrained(
-        model_path, trust_remote_code=(model_path in REMOTE_CODE_PATHS)
+        model_path, trust_remote_code=trust_remote_code
     )
-    model = load_ref_model(model_path=model_path, adapter_mod=adapter)
+    model = load_ref_model(
+        model_path=model_path, adapter_mod=adapter, trust_remote_code=trust_remote_code
+    )
 
     prompt = "The capital of France is"
     # Tokenize following the model's canonical scheme (chat template for
@@ -303,7 +311,7 @@ def _run_model_test(model_path: str, num_decode: int = 4) -> list[dict[str, Any]
     spyre_dtype = dtype_for_model_path(
         model_path,
         target_device="spyre",
-        trust_remote_code=(model_path in REMOTE_CODE_PATHS),
+        trust_remote_code=trust_remote_code,
     )
     move_model_to_spyre(model=model, module=adapter, dtype=spyre_dtype)
     print("  Running adapter on Spyre ...")

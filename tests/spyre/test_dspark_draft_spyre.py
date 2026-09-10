@@ -34,7 +34,7 @@ Usage (on Spyre pod)::
 import pytest
 import torch
 
-from tests.model_registry import DSPARK_PATHS
+from tests.model_registry import DSPARK_PATHS, REMOTE_CODE_PATHS
 
 pytest.importorskip("deepspec", reason="DSpark drafter modeling requires DeepSpec")
 
@@ -52,16 +52,26 @@ def test_dspark_draft_block(ckpt):
     dev = torch.device("spyre:0")
     hf_common.DEVICE = dev
 
+    trust_remote_code = ckpt in REMOTE_CODE_PATHS
+
     # The library resolves the checkpoint to its adapter by architecture
     # (``*DSparkModel``); confirm it lands on a DSpark draft adapter module.
-    resolved = resolve_adapter_module(ckpt)
+    resolved = resolve_adapter_module(ckpt, trust_remote_code=trust_remote_code)
     assert resolved.__name__.rsplit(".", 1)[-1].startswith(
         "hf_dspark_"
     ), f"{ckpt} resolved to {resolved.__name__}, expected a DSpark draft adapter"
 
-    arch = (AutoConfig.from_pretrained(ckpt).architectures or [""])[0]
+    arch = (
+        AutoConfig.from_pretrained(
+            ckpt, trust_remote_code=trust_remote_code
+        ).architectures
+        or [""]
+    )[0]
     model = AutoModelForCausalLM.from_pretrained(
-        ckpt, dtype=torch.float16, attn_implementation="sdpa"
+        ckpt,
+        dtype=torch.float16,
+        attn_implementation="sdpa",
+        trust_remote_code=trust_remote_code,
     ).eval()
     model.requires_grad_(False)
 

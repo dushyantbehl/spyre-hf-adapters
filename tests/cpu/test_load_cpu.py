@@ -64,10 +64,12 @@ def test_load_embedding(model_path):
     gc.collect()
 
 
-def load_embedding(model_path: str) -> Any:
+def load_embedding(model_path: str, trust_remote_code: bool | None = None) -> Any:
     auto_spyre_model = sys.modules["hf_adapters.auto_spyre_model"]
+    if trust_remote_code is None:
+        trust_remote_code = model_path in REMOTE_CODE_PATHS
     model = auto_spyre_model.AutoSpyreModel.from_pretrained(
-        model_path, trust_remote_code=(model_path in REMOTE_CODE_PATHS)
+        model_path, trust_remote_code=trust_remote_code
     )
     return model
 

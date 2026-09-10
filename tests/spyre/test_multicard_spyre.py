@@ -146,6 +146,7 @@ def run_multicard_smoke_test(
     max_new_tokens: int = _DEFAULT_MAX_NEW_TOKENS,
     dtype: "torch.dtype | None" = None,
     batch_size: int = _DEFAULT_BATCH_SIZE,
+    trust_remote_code: bool | None = None,
 ) -> dict[str, Any]:
     """Load model and generate tokens; return a diagnostics dict.
 
@@ -251,17 +252,24 @@ def run_multicard_smoke_test(
     # ── Phase 1: model load ────────────────────────────────────────────────
     print(f"\n{'=' * 20} Loading Model...")
 
+    if trust_remote_code is None:
+        from tests.model_registry import REMOTE_CODE_PATHS
+
+        trust_remote_code = model_path in REMOTE_CODE_PATHS
+
     model = None
     tokenizer = None
     load_t0 = time.time()
     try:
         tp = "auto" if world_size > 1 else None
-        kwargs: dict[str, Any] = {"tp_plan": tp}
+        kwargs: dict[str, Any] = {"tp_plan": tp, "trust_remote_code": trust_remote_code}
         if dtype is not None:
             kwargs["dtype"] = dtype
         model = AutoSpyreModelForCausalLM.from_pretrained(model_path, **kwargs)
         result["load_s"] = time.time() - load_t0
-        tokenizer = AutoTokenizer.from_pretrained(model_path)
+        tokenizer = AutoTokenizer.from_pretrained(
+            model_path, trust_remote_code=trust_remote_code
+        )
         print(f"  Load time  : {result['load_s']:.1f}s  [OK]")
     except Exception:
         result["load_s"] = time.time() - load_t0

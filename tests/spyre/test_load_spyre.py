@@ -70,12 +70,16 @@ def test_load_causal_lm(model_path: str) -> None:
     ), f"{model_path}: AutoSpyreModelForCausalLM did not attach generate()"
 
 
-def load_causal_lm(model_path: str) -> tuple[Any, Any, float]:
+def load_causal_lm(
+    model_path: str, trust_remote_code: bool | None = None
+) -> tuple[Any, Any, float]:
     from hf_adapters import AutoSpyreModelForCausalLM
 
+    if trust_remote_code is None:
+        trust_remote_code = model_path in REMOTE_CODE_PATHS
     t0 = time.time()
     model = AutoSpyreModelForCausalLM.from_pretrained(
-        model_path, trust_remote_code=(model_path in REMOTE_CODE_PATHS)
+        model_path, trust_remote_code=trust_remote_code
     )
     load_s = time.time() - t0
 
@@ -85,12 +89,16 @@ def load_causal_lm(model_path: str) -> tuple[Any, Any, float]:
     return model_is_not_none, callables, load_s
 
 
-def load_embedding(model_path: str) -> tuple[Any, float]:
+def load_embedding(
+    model_path: str, trust_remote_code: bool | None = None
+) -> tuple[Any, float]:
     from hf_adapters import AutoSpyreModel
 
+    if trust_remote_code is None:
+        trust_remote_code = model_path in REMOTE_CODE_PATHS
     t0 = time.time()
     model = AutoSpyreModel.from_pretrained(
-        model_path, trust_remote_code=(model_path in REMOTE_CODE_PATHS)
+        model_path, trust_remote_code=trust_remote_code
     )
     load_s = time.time() - t0
     return model is not None, load_s
@@ -109,11 +117,14 @@ def test_load_embedding(model_path: str) -> None:
     print(f"| {model_path} | embedding | PASS | {load_s:.1f} |")
 
 
-def load_masked_lm(model_path: str) -> tuple[Any, Any, float]:
+def load_masked_lm(
+    model_path: str, trust_remote_code: bool | None = None
+) -> tuple[Any, Any, float]:
     from hf_adapters import AutoSpyreModelForMaskedLM
     from hf_adapters.auto_spyre_model import dtype_for_model_path
 
-    trust_remote_code = model_path in REMOTE_CODE_PATHS
+    if trust_remote_code is None:
+        trust_remote_code = model_path in REMOTE_CODE_PATHS
     dtype = dtype_for_model_path(
         model_path, target_device="spyre", trust_remote_code=trust_remote_code
     )
@@ -144,11 +155,14 @@ def test_load_masked_lm(model_path: str) -> None:
     assert callables, f"{model_path}: AutoSpyreModelForMaskedLM forward is not callable"
 
 
-def load_question_answering(model_path: str) -> tuple[Any, Any, float]:
+def load_question_answering(
+    model_path: str, trust_remote_code: bool | None = None
+) -> tuple[Any, Any, float]:
     from hf_adapters import AutoSpyreModelForQuestionAnswering
     from hf_adapters.auto_spyre_model import dtype_for_model_path
 
-    trust_remote_code = model_path in REMOTE_CODE_PATHS
+    if trust_remote_code is None:
+        trust_remote_code = model_path in REMOTE_CODE_PATHS
     dtype = dtype_for_model_path(
         model_path, target_device="spyre", trust_remote_code=trust_remote_code
     )
@@ -172,11 +186,17 @@ def test_load_question_answering(model_path: str) -> None:
     assert ready, f"{model_path}: native forward or CPU QA head is not ready"
 
 
-def load_seq_classification(model_path: str) -> tuple[Any, Any, float]:
+def load_seq_classification(
+    model_path: str, trust_remote_code: bool | None = None
+) -> tuple[Any, Any, float]:
     from hf_adapters import AutoSpyreModelForSequenceClassification
 
+    if trust_remote_code is None:
+        trust_remote_code = model_path in REMOTE_CODE_PATHS
     t0 = time.time()
-    model: Any = AutoSpyreModelForSequenceClassification.from_pretrained(model_path)
+    model: Any = AutoSpyreModelForSequenceClassification.from_pretrained(
+        model_path, trust_remote_code=trust_remote_code
+    )
     load_s = time.time() - t0
     head_on_cpu = next(model.classifier.parameters()).device.type == "cpu"
     return model is not None, callable(model.forward) and head_on_cpu, load_s
@@ -197,11 +217,17 @@ def test_load_seq_classification(model_path: str) -> None:
     assert ready, f"{model_path}: native forward or CPU classifier head is not ready"
 
 
-def load_token_classification(model_path: str) -> tuple[Any, Any, float]:
+def load_token_classification(
+    model_path: str, trust_remote_code: bool | None = None
+) -> tuple[Any, Any, float]:
     from hf_adapters import AutoSpyreModelForTokenClassification
 
+    if trust_remote_code is None:
+        trust_remote_code = model_path in REMOTE_CODE_PATHS
     t0 = time.time()
-    model: Any = AutoSpyreModelForTokenClassification.from_pretrained(model_path)
+    model: Any = AutoSpyreModelForTokenClassification.from_pretrained(
+        model_path, trust_remote_code=trust_remote_code
+    )
     load_s = time.time() - t0
     head_on_cpu = next(model.classifier.parameters()).device.type == "cpu"
     return model is not None, callable(model.forward) and head_on_cpu, load_s

@@ -308,13 +308,15 @@ def load_ref_model(
     model_path: str,
     adapter_mod: types.ModuleType | None = None,
     auto_model_cls: type = AutoModelForCausalLM,
+    trust_remote_code: bool | None = None,
 ):
     from model_registry import REMOTE_CODE_PATHS
 
     from hf_adapters.auto_spyre_model import dtype_for_model_path
     from hf_adapters.hf_common import load_model_common
 
-    trust_remote_code = model_path in REMOTE_CODE_PATHS
+    if trust_remote_code is None:
+        trust_remote_code = model_path in REMOTE_CODE_PATHS
     dtype = dtype_for_model_path(
         model_path, target_device="cpu", trust_remote_code=trust_remote_code
     )
@@ -334,11 +336,14 @@ def resolve_adapter_module_for_test(
     mapping: dict[
         type[PretrainedConfig], types.ModuleType
     ] = CONFIG_TO_ADAPTER_MODULE_MAPPING,
+    trust_remote_code: bool | None = None,
 ) -> types.ModuleType:
     from model_registry import REMOTE_CODE_PATHS
 
+    if trust_remote_code is None:
+        trust_remote_code = str(model_name_or_path) in REMOTE_CODE_PATHS
     return resolve_adapter_module(
         model_name_or_path=model_name_or_path,
         mapping=mapping,
-        trust_remote_code=str(model_name_or_path) in REMOTE_CODE_PATHS,
+        trust_remote_code=trust_remote_code,
     )

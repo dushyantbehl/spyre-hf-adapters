@@ -821,14 +821,13 @@ def _all_paths(
     ]
 
 
-def _collect_remote_code_paths() -> frozenset[str]:
-    """Paths of every registered checkpoint that needs ``trust_remote_code``.
-
-    Spans all category registries so a single lookup covers any harness. Test
-    call sites check membership in ``REMOTE_CODE_PATHS`` to decide whether to
-    forward ``trust_remote_code=True`` to ``from_pretrained``.
-    """
-    registries = (
+# Paths that must be loaded with ``trust_remote_code=True``
+# Spans all category registries so a single lookup covers any harness. Test
+# call sites check membership in ``REMOTE_CODE_PATHS`` to decide whether to
+# forward ``trust_remote_code=True`` to ``from_pretrained``.
+REMOTE_CODE_PATHS: frozenset[str] = frozenset(
+    info["path"]
+    for models in (
         CAUSAL_LM_MODELS,
         EMBEDDING_MODELS,
         MASKED_LM_MODELS,
@@ -836,20 +835,9 @@ def _collect_remote_code_paths() -> frozenset[str]:
         TOKEN_CLASSIFICATION_MODELS,
         VISION_MODELS,
     )
-    paths: set[str] = set()
-    for models in registries:
-        with_trc = _all_paths(
-            models, include_gated=True, include_trust_remote_code=True
-        )
-        without_trc = _all_paths(
-            models, include_gated=True, include_trust_remote_code=False
-        )
-        paths.update(set(with_trc) - set(without_trc))
-    return frozenset(paths)
-
-
-# Paths that must be loaded with ``trust_remote_code=True``
-REMOTE_CODE_PATHS: frozenset[str] = _collect_remote_code_paths()
+    for info in models.values()
+    if info.get("trust_remote_code", False)
+)
 
 
 # Every registered path per category, bypassing the smallest-per-adapter

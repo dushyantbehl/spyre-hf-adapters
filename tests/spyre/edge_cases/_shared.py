@@ -51,11 +51,15 @@ from tests.conftest import (
 from tests.model_registry import REMOTE_CODE_PATHS
 
 
-def _load_spyre_model(model_path: str) -> PreTrainedModel:
+def _load_spyre_model(
+    model_path: str, trust_remote_code: bool | None = None
+) -> PreTrainedModel:
     print(f"  Loading {model_path} on Spyre ...")
+    if trust_remote_code is None:
+        trust_remote_code = model_path in REMOTE_CODE_PATHS
     t0 = time.time()
     model = AutoSpyreModelForCausalLM.from_pretrained(
-        model_path, trust_remote_code=(model_path in REMOTE_CODE_PATHS)
+        model_path, trust_remote_code=trust_remote_code
     )
     print(f"  Spyre load+prepare: {time.time() - t0:.1f}s")
     return model
@@ -64,14 +68,25 @@ def _load_spyre_model(model_path: str) -> PreTrainedModel:
 def _setup(
     model_path: str,
     need_ref: bool,
+    trust_remote_code: bool | None = None,
 ):
+    if trust_remote_code is None:
+        trust_remote_code = model_path in REMOTE_CODE_PATHS
     tokenizer = AutoTokenizer.from_pretrained(
-        model_path, trust_remote_code=(model_path in REMOTE_CODE_PATHS)
+        model_path, trust_remote_code=trust_remote_code
     )
-    adapter = resolve_adapter_module_for_test(model_path)
+    adapter = resolve_adapter_module_for_test(
+        model_path, trust_remote_code=trust_remote_code
+    )
 
-    ref_model = load_ref_model(model_path, adapter_mod=adapter) if need_ref else None
-    spyre_model = _load_spyre_model(model_path)
+    ref_model = (
+        load_ref_model(
+            model_path, adapter_mod=adapter, trust_remote_code=trust_remote_code
+        )
+        if need_ref
+        else None
+    )
+    spyre_model = _load_spyre_model(model_path, trust_remote_code=trust_remote_code)
     return model_path, tokenizer, ref_model, spyre_model
 
 
@@ -85,9 +100,13 @@ def _teardown(
     gc.collect()
 
 
-def run_greedy_case(model_path: str, case_id: str) -> tuple[bool, str]:
+def run_greedy_case(
+    model_path: str, case_id: str, trust_remote_code: bool | None = None
+) -> tuple[bool, str]:
     """Greedy-generate case: HF reference == Spyre output, per row."""
-    info, tokenizer, ref_model, model = _setup(model_path, need_ref=True)
+    info, tokenizer, ref_model, model = _setup(
+        model_path, need_ref=True, trust_remote_code=trust_remote_code
+    )
     try:
         targets, max_new = CASES[case_id]
         prompts = make_prompts(tokenizer, targets)
@@ -111,9 +130,13 @@ def run_greedy_case(model_path: str, case_id: str) -> tuple[bool, str]:
         _teardown(model, ref_model)
 
 
-def run_eos_case(model_path: str, case_id: str) -> tuple[bool, str]:
+def run_eos_case(
+    model_path: str, case_id: str, trust_remote_code: bool | None = None
+) -> tuple[bool, str]:
     """Forced-EOS case: shared eos_token_id stops each row at its requested offset."""
-    info, tokenizer, ref_model, model = _setup(model_path, need_ref=True)
+    info, tokenizer, ref_model, model = _setup(
+        model_path, need_ref=True, trust_remote_code=trust_remote_code
+    )
     try:
         eos_offsets, max_new = EOS_CASES[case_id]
         batch_size = len(eos_offsets)

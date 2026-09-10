@@ -22,7 +22,7 @@ from tests.conftest import (
     resolve_adapter_module_for_test,
 )
 from tests.cpu.conftest import _unwrap_compiled_blocks
-from tests.model_registry import QUESTION_ANSWERING_PATHS
+from tests.model_registry import QUESTION_ANSWERING_PATHS, REMOTE_CODE_PATHS
 
 pytestmark = pytest.mark.model_harness("question_answering")
 
@@ -39,9 +39,16 @@ COSINE_THRESHOLD = 0.999
 )
 def test_native_forward(model_path: str) -> None:
     auto_spyre_model = sys.modules["hf_adapters.auto_spyre_model"]
-    dtype = dtype_for_model_path(model_path, target_device="cpu")
-    adapter_module = resolve_adapter_module_for_test(model_path)
-    tokenizer = AutoTokenizer.from_pretrained(model_path)
+    trust_remote_code = model_path in REMOTE_CODE_PATHS
+    dtype = dtype_for_model_path(
+        model_path, target_device="cpu", trust_remote_code=trust_remote_code
+    )
+    adapter_module = resolve_adapter_module_for_test(
+        model_path, trust_remote_code=trust_remote_code
+    )
+    tokenizer = AutoTokenizer.from_pretrained(
+        model_path, trust_remote_code=trust_remote_code
+    )
     encoded = tokenizer(
         QUESTIONS,
         CONTEXTS,
@@ -55,6 +62,7 @@ def test_native_forward(model_path: str) -> None:
         model_path=model_path,
         adapter_mod=adapter_module,
         auto_model_cls=AutoModelForQuestionAnswering,
+        trust_remote_code=trust_remote_code,
     )
     with torch.no_grad():
         ref_outputs = ref_model(**encoded, return_dict=True)
@@ -62,7 +70,7 @@ def test_native_forward(model_path: str) -> None:
     gc.collect()
 
     model = auto_spyre_model.AutoSpyreModelForQuestionAnswering.from_pretrained(
-        model_path, dtype=dtype
+        model_path, dtype=dtype, trust_remote_code=trust_remote_code
     )
     _unwrap_compiled_blocks(model)
     with torch.no_grad():

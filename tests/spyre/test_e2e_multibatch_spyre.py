@@ -97,12 +97,15 @@ def _print_table(model_path: str, rows: list[dict[str, Any]]) -> None:
     "model_path", xfail_non_blocking(CAUSAL_PATHS, table=NON_BLOCKING_CAUSAL_MODELS)
 )
 def test_e2e_multibatch_spyre(model_path: str) -> None:
-    adapter_mod = resolve_adapter_module_for_test(model_path)
+    trust_remote_code = model_path in REMOTE_CODE_PATHS
+    adapter_mod = resolve_adapter_module_for_test(
+        model_path, trust_remote_code=trust_remote_code
+    )
 
     assert len(PROMPTS) > 1, "multi-batch test needs batch_size > 1"
 
     tokenizer = AutoTokenizer.from_pretrained(
-        model_path, trust_remote_code=(model_path in REMOTE_CODE_PATHS)
+        model_path, trust_remote_code=trust_remote_code
     )
 
     print(f"\n{'=' * 70}")
@@ -111,7 +114,7 @@ def test_e2e_multibatch_spyre(model_path: str) -> None:
 
     # HF reference (per-prompt) — informational only. Run BEFORE prepare_for_spyre
     # patches RMSNorm globally. Loaded on CPU via load_ref_model, then discarded.
-    model = load_ref_model(model_path, adapter_mod)
+    model = load_ref_model(model_path, adapter_mod, trust_remote_code=trust_remote_code)
     print("  Running HF reference on CPU (per-prompt, informational) ...")
     hf_outputs = hf_reference_outputs(model, tokenizer, PROMPTS, MAX_NEW_TOKENS)
     del model
@@ -119,7 +122,6 @@ def test_e2e_multibatch_spyre(model_path: str) -> None:
 
     # One Spyre model, reused for the batched run and each single run (generate
     # allocates a fresh KV cache per call, so runs do not contaminate each other).
-    trust_remote_code = model_path in REMOTE_CODE_PATHS
     spyre_dtype = dtype_for_model_path(
         model_path, target_device="spyre", trust_remote_code=trust_remote_code
     )

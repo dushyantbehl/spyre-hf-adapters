@@ -188,8 +188,12 @@ def test_auto_loader(model_path):
     gc.collect()
 
     # Phase 2: HF reference (fresh)
-    adapter_mod = resolve_adapter_module_for_test(model_path)
-    hf_model = load_ref_model(model_path, adapter_mod)
+    adapter_mod = resolve_adapter_module_for_test(
+        model_path, trust_remote_code=trust_remote_code
+    )
+    hf_model = load_ref_model(
+        model_path, adapter_mod, trust_remote_code=trust_remote_code
+    )
     encoded = encode_prompts(tokenizer, PROMPT)
     with torch.no_grad():
         hf_out = hf_model.generate(
