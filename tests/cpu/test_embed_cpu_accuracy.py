@@ -82,10 +82,11 @@ def _run_prefill(
 
 
 @pytest.mark.parametrize("model_path", EMBED_PATHS, ids=EMBED_PATHS)
-def test_auto_loader(model_path: str) -> None:
+def test_auto_loader(model_path: str, trust_remote_code: bool | None) -> None:
     auto_spyre_model = sys.modules["hf_adapters.auto_spyre_model"]
     hf_common_mod = sys.modules["hf_adapters.hf_common"]
-    trust_remote_code = model_path in REMOTE_CODE_PATHS
+    if trust_remote_code is None:
+        trust_remote_code = model_path in REMOTE_CODE_PATHS
     adapter_module = resolve_adapter_module_for_test(
         model_path, trust_remote_code=trust_remote_code
     )

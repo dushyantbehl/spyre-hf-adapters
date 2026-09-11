@@ -182,6 +182,28 @@ def pytest_addoption(parser: Parser) -> None:
             "in the test decorators are ignored."
         ),
     )
+    parser.addoption(
+        "--trust-remote-code",
+        action="store_true",
+        default=False,
+        help=(
+            "Force trust_remote_code=True for every test that loads a model. "
+            "Use with --model-path to run a remote-code checkpoint that is not "
+            "listed in tests/model_registry.py's REMOTE_CODE_PATHS."
+        ),
+    )
+
+
+@pytest.fixture
+def trust_remote_code(request) -> bool | None:
+    """CLI override for trust_remote_code.
+
+    ``None`` when the flag is absent — every test then falls back to its
+    ``model_path in REMOTE_CODE_PATHS`` check, so registry-driven runs are
+    unchanged. ``True`` when ``--trust-remote-code`` is passed, which wins over
+    the registry (the escape hatch for off-registry ``--model-path`` runs).
+    """
+    return True if request.config.getoption("--trust-remote-code") else None
 
 
 def pytest_generate_tests(metafunc: Metafunc) -> None:

@@ -264,8 +264,9 @@ def _stock_vlm_greedy_steps(
 @pytest.mark.parametrize(
     "model_path", xfail_non_blocking(VISION_PATHS, table=NON_BLOCKING_VISION_MODELS)
 )
-def test_vlm_generate_spyre(model_path: str) -> None:
-    trust_remote_code = model_path in REMOTE_CODE_PATHS
+def test_vlm_generate_spyre(model_path: str, trust_remote_code: bool | None) -> None:
+    if trust_remote_code is None:
+        trust_remote_code = model_path in REMOTE_CODE_PATHS
     adapter = resolve_adapter_module(
         model_path,
         mapping=IMAGE_TEXT_TO_TEXT_CONFIG_TO_ADAPTER_MODULE_MAPPING,

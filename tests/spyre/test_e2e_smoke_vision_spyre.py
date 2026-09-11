@@ -130,7 +130,9 @@ def _run_single_image(
     }
 
 
-def run_vision_smoke_test(model_path: str) -> dict[str, Any]:
+def run_vision_smoke_test(
+    model_path: str, trust_remote_code: bool | None = None
+) -> dict[str, Any]:
     """Load model once, then run all SMOKE_TEST_IMAGES through it in sequence.
 
     Returns a result dict with per-image results and overall load time.
@@ -140,7 +142,8 @@ def run_vision_smoke_test(model_path: str) -> dict[str, Any]:
     print(f"  loading from {model_path}")
     print(f"{'=' * 70}")
 
-    trust_remote_code = model_path in REMOTE_CODE_PATHS
+    if trust_remote_code is None:
+        trust_remote_code = model_path in REMOTE_CODE_PATHS
     dtype = dtype_for_model_path(
         model_path, target_device="spyre", trust_remote_code=trust_remote_code
     )
@@ -184,8 +187,10 @@ def run_vision_smoke_test(model_path: str) -> dict[str, Any]:
 @pytest.mark.parametrize(
     "model_path", xfail_non_blocking(VISION_PATHS, table=NON_BLOCKING_VISION_MODELS)
 )
-def test_e2e_smoke_vision_spyre(model_path: str) -> None:
-    result = run_vision_smoke_test(model_path)
+def test_e2e_smoke_vision_spyre(
+    model_path: str, trust_remote_code: bool | None
+) -> None:
+    result = run_vision_smoke_test(model_path, trust_remote_code=trust_remote_code)
 
     print("\n## E2E Vision Smoke Test Results\n")
     print("| Image | Status | Tokens | Generated Text | Gen (s) |")

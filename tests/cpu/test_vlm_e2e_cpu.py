@@ -57,10 +57,11 @@ PROMPT: str = "Briefly describe this image."
 
 
 @pytest.mark.parametrize("model_path", VISION_PATHS, ids=VISION_PATHS)
-def test_vlm_generate(model_path: str) -> None:
+def test_vlm_generate(model_path: str, trust_remote_code: bool | None) -> None:
     from hf_adapters.auto_spyre_model import dtype_for_model_path
 
-    trust_remote_code = model_path in REMOTE_CODE_PATHS
+    if trust_remote_code is None:
+        trust_remote_code = model_path in REMOTE_CODE_PATHS
     adapter = resolve_adapter_module_for_test(
         model_path,
         mapping=IMAGE_TEXT_TO_TEXT_CONFIG_TO_ADAPTER_MODULE_MAPPING,

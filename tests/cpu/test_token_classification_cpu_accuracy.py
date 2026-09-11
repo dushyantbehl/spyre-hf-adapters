@@ -36,9 +36,10 @@ COSINE_THRESHOLD = 0.999
 @pytest.mark.parametrize(
     "model_path", TOKEN_CLASSIFICATION_PATHS, ids=TOKEN_CLASSIFICATION_PATHS
 )
-def test_native_forward(model_path: str) -> None:
+def test_native_forward(model_path: str, trust_remote_code: bool | None) -> None:
     auto_spyre_model = sys.modules["hf_adapters.auto_spyre_model"]
-    trust_remote_code = model_path in REMOTE_CODE_PATHS
+    if trust_remote_code is None:
+        trust_remote_code = model_path in REMOTE_CODE_PATHS
     dtype = get_dtype_for_cpu(model_path)
     adapter_module = resolve_adapter_module_for_test(
         model_path,

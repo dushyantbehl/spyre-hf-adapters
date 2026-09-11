@@ -327,8 +327,9 @@ def _run_model_test(
 
 def token_compare_spyre(
     model_path: str,
+    trust_remote_code: bool | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    rows = _run_model_test(model_path)
+    rows = _run_model_test(model_path, trust_remote_code=trust_remote_code)
     mismatches = [r for r in rows if not r["top1_match"]]
     return mismatches, rows
 
@@ -336,8 +337,12 @@ def token_compare_spyre(
 @pytest.mark.parametrize(
     "model_path", xfail_non_blocking(CAUSAL_PATHS, table=NON_BLOCKING_CAUSAL_MODELS)
 )
-def test_e2e_token_compare_spyre(model_path: str) -> None:
-    mismatches, rows = token_compare_spyre(model_path)
+def test_e2e_token_compare_spyre(
+    model_path: str, trust_remote_code: bool | None
+) -> None:
+    mismatches, rows = token_compare_spyre(
+        model_path, trust_remote_code=trust_remote_code
+    )
     _print_table(rows)
     n_match = sum(1 for r in rows if r["top1_match"])
     print(f"\nTop-1 agreement: {n_match}/{len(rows)} steps")

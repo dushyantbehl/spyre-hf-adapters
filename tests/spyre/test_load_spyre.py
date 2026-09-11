@@ -55,9 +55,11 @@ from tests.model_registry import (
 @pytest.mark.parametrize(
     "model_path", xfail_non_blocking(CAUSAL_PATHS, table=NON_BLOCKING_CAUSAL_MODELS)
 )
-def test_load_causal_lm(model_path: str) -> None:
+def test_load_causal_lm(model_path: str, trust_remote_code: bool | None) -> None:
 
-    model_is_not_none, callables, load_s = load_causal_lm(model_path)
+    model_is_not_none, callables, load_s = load_causal_lm(
+        model_path, trust_remote_code=trust_remote_code
+    )
 
     print(f"  [{model_path}] causal-LM load time: {load_s:.1f}s")
     print("\n## Spyre Load Test Results\n")
@@ -106,9 +108,11 @@ def load_embedding(
 
 @pytest.mark.model_harness("embedding")
 @pytest.mark.parametrize("model_path", EMBED_PATHS, ids=EMBED_PATHS)
-def test_load_embedding(model_path: str) -> None:
+def test_load_embedding(model_path: str, trust_remote_code: bool | None) -> None:
 
-    model_loaded, load_s = load_embedding(model_path)
+    model_loaded, load_s = load_embedding(
+        model_path, trust_remote_code=trust_remote_code
+    )
     assert model_loaded, f"{model_path}: from_pretrained returned None"
     print(f"  [{model_path}] embedding load time: {load_s:.1f}s")
     print("\n## Spyre Load Test Results\n")
@@ -142,9 +146,11 @@ def load_masked_lm(
 
 @pytest.mark.model_harness("masked_lm")
 @pytest.mark.parametrize("model_path", MASKED_LM_PATHS, ids=MASKED_LM_PATHS)
-def test_load_masked_lm(model_path: str) -> None:
+def test_load_masked_lm(model_path: str, trust_remote_code: bool | None) -> None:
 
-    model_is_not_none, callables, load_s = load_masked_lm(model_path)
+    model_is_not_none, callables, load_s = load_masked_lm(
+        model_path, trust_remote_code=trust_remote_code
+    )
 
     print(f"  [{model_path}] masked-LM load time: {load_s:.1f}s")
     print("\n## Spyre Load Test Results\n")
@@ -179,8 +185,12 @@ def load_question_answering(
 @pytest.mark.parametrize(
     "model_path", QUESTION_ANSWERING_PATHS, ids=QUESTION_ANSWERING_PATHS
 )
-def test_load_question_answering(model_path: str) -> None:
-    model_is_not_none, ready, load_s = load_question_answering(model_path)
+def test_load_question_answering(
+    model_path: str, trust_remote_code: bool | None
+) -> None:
+    model_is_not_none, ready, load_s = load_question_answering(
+        model_path, trust_remote_code=trust_remote_code
+    )
     print(f"  [{model_path}] question-answering load time: {load_s:.1f}s")
     assert model_is_not_none, f"{model_path}: from_pretrained returned None"
     assert ready, f"{model_path}: native forward or CPU QA head is not ready"
@@ -206,8 +216,12 @@ def load_seq_classification(
 @pytest.mark.parametrize(
     "model_path", SEQ_CLASSIFICATION_PATHS, ids=SEQ_CLASSIFICATION_PATHS
 )
-def test_load_seq_classification(model_path: str) -> None:
-    model_is_not_none, ready, load_s = load_seq_classification(model_path)
+def test_load_seq_classification(
+    model_path: str, trust_remote_code: bool | None
+) -> None:
+    model_is_not_none, ready, load_s = load_seq_classification(
+        model_path, trust_remote_code=trust_remote_code
+    )
     print(f"  [{model_path}] seq-classification load time: {load_s:.1f}s")
     print("\n## Spyre Load Test Results\n")
     print("| Path | Kind | Status | Load (s) |")
@@ -237,8 +251,12 @@ def load_token_classification(
 @pytest.mark.parametrize(
     "model_path", TOKEN_CLASSIFICATION_PATHS, ids=TOKEN_CLASSIFICATION_PATHS
 )
-def test_load_token_classification(model_path: str) -> None:
-    model_is_not_none, ready, load_s = load_token_classification(model_path)
+def test_load_token_classification(
+    model_path: str, trust_remote_code: bool | None
+) -> None:
+    model_is_not_none, ready, load_s = load_token_classification(
+        model_path, trust_remote_code=trust_remote_code
+    )
     print(f"  [{model_path}] token-classification load time: {load_s:.1f}s")
     print("\n## Spyre Load Test Results\n")
     print("| Path | Kind | Status | Load (s) |")

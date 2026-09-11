@@ -162,9 +162,10 @@ def adapter_greedy_steps(run_forward_fn, model, input_ids, num_decode=NUM_DECODE
 
 
 @pytest.mark.parametrize("model_path", CAUSAL_PATHS, ids=CAUSAL_PATHS)
-def test_auto_loader(model_path):
+def test_auto_loader(model_path, trust_remote_code):
     auto_spyre_model = sys.modules["hf_adapters.auto_spyre_model"]
-    trust_remote_code = model_path in REMOTE_CODE_PATHS
+    if trust_remote_code is None:
+        trust_remote_code = model_path in REMOTE_CODE_PATHS
     tokenizer = AutoTokenizer.from_pretrained(
         model_path, trust_remote_code=trust_remote_code
     )

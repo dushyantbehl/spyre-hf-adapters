@@ -40,7 +40,7 @@ pytest.importorskip("deepspec", reason="DSpark drafter modeling requires DeepSpe
 
 
 @pytest.mark.parametrize("ckpt", DSPARK_PATHS)
-def test_dspark_draft_block(ckpt):
+def test_dspark_draft_block(ckpt, trust_remote_code):
     """prepare_for_spyre + _run_draft_block produce finite block hidden states."""
     import torch_spyre  # noqa: F401
     from transformers import AutoConfig, AutoModelForCausalLM
@@ -52,7 +52,8 @@ def test_dspark_draft_block(ckpt):
     dev = torch.device("spyre:0")
     hf_common.DEVICE = dev
 
-    trust_remote_code = ckpt in REMOTE_CODE_PATHS
+    if trust_remote_code is None:
+        trust_remote_code = ckpt in REMOTE_CODE_PATHS
 
     # The library resolves the checkpoint to its adapter by architecture
     # (``*DSparkModel``); confirm it lands on a DSpark draft adapter module.

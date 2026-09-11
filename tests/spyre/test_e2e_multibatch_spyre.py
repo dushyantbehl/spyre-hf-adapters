@@ -96,8 +96,9 @@ def _print_table(model_path: str, rows: list[dict[str, Any]]) -> None:
 @pytest.mark.parametrize(
     "model_path", xfail_non_blocking(CAUSAL_PATHS, table=NON_BLOCKING_CAUSAL_MODELS)
 )
-def test_e2e_multibatch_spyre(model_path: str) -> None:
-    trust_remote_code = model_path in REMOTE_CODE_PATHS
+def test_e2e_multibatch_spyre(model_path: str, trust_remote_code: bool | None) -> None:
+    if trust_remote_code is None:
+        trust_remote_code = model_path in REMOTE_CODE_PATHS
     adapter_mod = resolve_adapter_module_for_test(
         model_path, trust_remote_code=trust_remote_code
     )

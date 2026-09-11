@@ -34,9 +34,10 @@ COSINE_THRESHOLD = 0.999
 
 
 @pytest.mark.parametrize("model_path", MASKED_LM_PATHS, ids=MASKED_LM_PATHS)
-def test_auto_loader(model_path: str) -> None:
+def test_auto_loader(model_path: str, trust_remote_code: bool | None) -> None:
     auto_spyre_model = sys.modules["hf_adapters.auto_spyre_model"]
-    trust_remote_code = model_path in REMOTE_CODE_PATHS
+    if trust_remote_code is None:
+        trust_remote_code = model_path in REMOTE_CODE_PATHS
     dtype = dtype_for_model_path(
         model_path, target_device="cpu", trust_remote_code=trust_remote_code
     )

@@ -54,8 +54,11 @@ COSINE_THRESHOLD = 0.99
 @pytest.mark.parametrize(
     "model_path", TOKEN_CLASSIFICATION_PATHS, ids=TOKEN_CLASSIFICATION_PATHS
 )
-def test_e2e_token_classification_compare_spyre(model_path: str) -> None:
-    trust_remote_code = model_path in REMOTE_CODE_PATHS
+def test_e2e_token_classification_compare_spyre(
+    model_path: str, trust_remote_code: bool | None
+) -> None:
+    if trust_remote_code is None:
+        trust_remote_code = model_path in REMOTE_CODE_PATHS
     tokenizer = AutoTokenizer.from_pretrained(
         model_path, trust_remote_code=trust_remote_code
     )
