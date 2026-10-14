@@ -23,9 +23,10 @@ compiled block functions.
 
 import math
 import os
+import sys
 import time
 import warnings
-from contextlib import contextmanager, nullcontext
+from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any, Callable, Iterator, Optional
 
@@ -141,7 +142,7 @@ def moe_decode_selected_experts(
 
     T, H = x.shape
     if x.device.type == "spyre":
-        from torch_spyre._inductor.propagate_hints import spyre_hint
+        from torch_spyre._inductor.wsr import for_each_tile
 
         # Widen topk's fp16 indices onto a stick before converting them to the
         # device's int32 gather indices. The layout pass inserts the restickify.
@@ -151,17 +152,19 @@ def moe_decode_selected_experts(
         index_stick = index_stick.to(torch.float32)
         index_address = index_stick[..., : stick_size // 2].to(torch.int32)
         expert_indices = index_address[..., 0]
-        hint = spyre_hint(tiles={"row": tile})
     else:
-        hint = nullcontext()
+        index_address = expert_indices[..., None]
 
-    with hint:
-        rows = T * top_k
-        intermediate = gate.shape[-1]
-        inputs = x[:, None, :].expand(T, top_k, H).contiguous().reshape(rows, 1, H)
-        selected_gate = gate[expert_indices].reshape(rows, H, intermediate)
-        selected_up = up[expert_indices].reshape(rows, H, intermediate)
-        selected_down = down[expert_indices].reshape(rows, intermediate, H)
+    rows = T * top_k
+    inputs = x[:, None, :].expand(T, top_k, H).contiguous().reshape(rows, 1, H)
+    indices = index_address.reshape(rows, -1)
+
+    def expert_body(_, tiles):
+        inputs, indices, gate, up, down = tiles
+        selected = indices[:, 0]
+        selected_gate = gate[selected]
+        selected_up = up[selected]
+        selected_down = down[selected]
 
         gate_out = torch.bmm(inputs, selected_gate)
         up_out = torch.bmm(inputs, selected_up)
@@ -169,12 +172,66 @@ def moe_decode_selected_experts(
             activated = F.silu(gate_out) * up_out
         else:
             activated = F.gelu(gate_out, approximate="tanh") * up_out
-        expert_out = torch.bmm(activated, selected_down).reshape(T, top_k, H)
-        expert_out = expert_out * weights[..., None]
-        if per_expert_scale_stick is not None:
-            expert_scale = per_expert_scale_stick[expert_indices][..., :1]
-            expert_out = expert_out * expert_scale
-        return expert_out.sum(dim=1)
+        return None, torch.bmm(activated, selected_down)
+
+    operands = (inputs, indices, gate, up, down)
+    if x.device.type == "spyre":
+        # Gather weights inside each tile so only its selected experts are
+        # materialized. Use a divisor of rows: for_each_tile needs full tiles.
+        _, expert_out = for_each_tile(
+            expert_body,
+            operands,
+            dims=(0, 0, None, None, None),
+            tile_size=math.gcd(rows, tile),
+            out_dim=0,
+        )
+    else:
+        _, expert_out = expert_body(None, operands)
+
+    expert_out = expert_out * weights.reshape(rows, 1, 1)
+    if per_expert_scale_stick is not None:
+        expert_scale = per_expert_scale_stick[expert_indices][..., :1]
+        expert_out = expert_out * expert_scale.reshape(rows, 1, 1)
+    return expert_out.reshape(T, top_k, H).sum(dim=1)
+
+
+@contextmanager
+def named_moe_prefill_inputs(x, gate, up, down):
+    """Keep the prefill token work division attached to its eager inputs.
+
+    The expert loop's ``work_div={"T": 32}`` needs these names to resolve to
+    the token axis. Without them the compiler can leave most cores idle.
+    Accept flattened [T, H] or batched [B, T, H] inputs. Keep batch and sequence
+    names separate so flattening them for the expert loop and restoring the
+    batch shape both preserve dimension propagation.
+    """
+    if x.device.type != "spyre":
+        yield
+        return
+
+    named_dims = sys.modules["torch_spyre._inductor.wsr.propagate_named_dims"]
+    batch, tokens, _ = (1, *x.shape) if x.ndim == 2 else x.shape
+    input_names = ("T", "H") if x.ndim == 2 else ("B", "T", "H")
+    experts, hidden, intermediate = gate.shape
+    try:
+        for name, extent in (
+            ("B", batch),
+            ("E", experts),
+            ("T", tokens),
+            ("H", hidden),
+            ("M", intermediate),
+        ):
+            named_dims.declare_tensor_dim(name, extent)
+        named_dims.name_tensor_dims(
+            x, [name for name, size in zip(input_names, x.shape) if size != 1]
+        )
+        named_dims.name_tensor_dims(gate, ["E", "H", "M"])
+        named_dims.name_tensor_dims(up, ["E", "H", "M"])
+        named_dims.name_tensor_dims(down, ["E", "M", "H"])
+        yield
+    finally:
+        # Compilation consumes these globals; a cache hit does not.
+        named_dims.reset()
 
 
 def moe_prefill_all_experts(x, routing_weight, gate, up, down, activation):
@@ -3885,7 +3942,7 @@ def prefill_question_answering(
     attention_mask,
     token_type_ids=None,
 ) -> tuple[torch.FloatTensor, torch.FloatTensor]:
-    """Run an encoder on Spyre and its extractive-QA head on CPU."""
+    """Run an encoder and its extractive-QA head on Spyre."""
     last_hidden_state = prefill_encoder(
         run_encoder_forward_fn,
         model,
@@ -3917,7 +3974,7 @@ def prefill_sequence_classification(
     attention_mask,
     token_type_ids=None,
 ) -> torch.Tensor:
-    """Run an encoder on Spyre and its sequence-classification head on CPU."""
+    """Run an encoder and its sequence-classification head on Spyre."""
     last_hidden_state = prefill_encoder(
         run_encoder_forward_fn,
         model,
@@ -3944,15 +4001,12 @@ def prefill_token_classification(
     attention_mask,
     token_type_ids=None,
 ) -> torch.Tensor:
-    """Run an encoder on Spyre and its token-classification head on CPU.
+    """Run an encoder and its token-classification head on Spyre.
 
     Drives the encoder backbone via ``prefill_encoder``, then applies
     ``model.classifier`` (a single linear layer whose output dim equals
-    ``config.num_labels``) to every token position.  The head is kept on
-    CPU (via ``_spyre_cpu_submodules``) to avoid:
-
-    - ``aten.slice`` (index operations that don't lower on Spyre).
-    - Any Dropout path that uses ``torch.bernoulli``.
+    ``config.num_labels``) to every token position on device, so only the
+    ``[B, L, num_labels]`` logits are copied to CPU.
 
     Args:
         run_encoder_forward_fn: ``fn(model, input_ids, attn_mask, position_ids,
